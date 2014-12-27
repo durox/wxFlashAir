@@ -1,0 +1,3 @@
+[submodule "pyflashair"]
+	path = pyflashair
+	url = git@github.com:durox/pyflashair.git
