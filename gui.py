@@ -1,3 +1,6 @@
+#!/usr/bin/env python
+# encoding: utf-8
+
 import wx
 import sys
 from pyflashair import pyflashair
@@ -8,7 +11,14 @@ class Main(object):
     def __init__(self):
         """start main routine """
         self.app = wx.App()
+
+        self.currentpath = "/"
+        self.prevpath = "/"
+
         self.createWidgets()
+        self.verbinden()
+        self.move(self.currentpath)
+
         self.app.MainLoop()
 
     def createWidgets(self):
@@ -19,6 +29,8 @@ class Main(object):
         self.frame = MainFrame(None)
 
         self.frame.Bind(wx.EVT_MENU, self.OnVerbinden, id=101)
+        self.frame.Bind(wx.EVT_MENU, self.OnAktualisieren, id=102)
+        self.frame.lcFiles.Bind(wx.EVT_LEFT_DCLICK, self.OnDClick)
         self.frame.Show()
 
     def verbinden(self, ip="192.168.0.1"):
@@ -26,8 +38,21 @@ class Main(object):
         Returns: @todo
 
         """
-
         self.fa = pyflashair.FlashAir(ip)
+
+    def move(self, path):
+        """move to folder
+
+        Args:
+            path (@todo): @todo
+
+        Returns: @todo
+
+        """
+        self.prevpath = self.currentpath
+        self.currentpath = path
+        self.filelist = self.fa.GetFileList(self.currentpath)
+        self.frame.setFilelist(self.filelist)
 
     def OnAktualisieren(self, event):
         """Dateiliste aktualisieren
@@ -38,16 +63,32 @@ class Main(object):
         Returns: True
 
         """
-        self.filelist = self.fa.GetFileList("/")
-        self.lcFiles.DeleteAllItems()
-        for f in self.filelist:
-            self.frame.lcFiles.Append((f.name, f.dir, f.datetime))
+        self.move(self.currentpath)
 
     def OnVerbinden(self, event):
         dlg = wx.TextEntryDialog(self.frame, "IP-Adresse:", "Mit FlashAir Karte verbinden...", "192.168.0.1")
         if dlg.ShowModal():
             ip = dlg.GetValue()
             self.verbinden(ip)
+
+    def OnDClick(self, event):
+        """double click on list element
+
+        Args:
+            event (@todo): @todo
+
+        Returns: @todo
+
+        """
+        index = self.frame.lcFiles.GetFirstSelected()
+        if index == 0:
+            path = self.prevpath
+            self.move(path)
+        else:
+            selected = self.filelist[index - 1]
+            if selected.size == 0:
+                path = self.currentpath + "/" + selected.name
+                self.move(path)
 
 
 class MainFrame(wx.Frame):
@@ -80,7 +121,8 @@ class MainFrame(wx.Frame):
         self.lcFiles = wx.ListCtrl(self, style=wx.LC_REPORT)
         self.lcFiles.InsertColumn(0, "Name")
         self.lcFiles.InsertColumn(1, "Verzeichnis")
-        self.lcFiles.InsertColumn(2, "Datum")
+        self.lcFiles.InsertColumn(2, "Größe")
+        self.lcFiles.InsertColumn(3, "Datum")
 
         flag = wx.EXPAND
         gbs = wx.GridBagSizer()
@@ -88,6 +130,20 @@ class MainFrame(wx.Frame):
         gbs.AddGrowableCol(0)
         gbs.AddGrowableRow(0)
         self.SetSizer(gbs)
+
+    def setFilelist(self, files):
+        """set files
+
+        Args:
+            files (@todo): @todo
+
+        Returns: @todo
+
+        """
+        self.lcFiles.DeleteAllItems()
+        self.lcFiles.Append(("..", "", ""))
+        for f in files:
+            self.lcFiles.Append((f.name, f.dir, f.size, f.datetime))
 
 
 class RedirectObj(object):
