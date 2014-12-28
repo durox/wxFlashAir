@@ -4,6 +4,8 @@
 import wx
 import sys
 from pyflashair import pyflashair
+import pickle
+import os.path
 
 
 class Main(object):
@@ -14,12 +16,25 @@ class Main(object):
 
         self.currentpath = "/"
         self.prevpath = "/"
+        self.synclocal = ""
+        self.syncremote = ""
+
+        path = os.path.dirname(sys.argv[0]) + os.path.sep + "save.dat"
+        if os.path.exists(path):
+            obj = pickle.load(open(path, "rb"))
+            self.synclocal = obj[0]
+            self.syncremote = obj[1]
+            self.currentpath = obj[2]
+            self.prevpath = obj[3]
 
         self.createWidgets()
         self.verbinden()
         self.move(self.currentpath)
 
         self.app.MainLoop()
+
+        obj = (self.synclocal, self.syncremote, self.currentpath, self.prevpath)
+        pickle.dump(obj, open(path, "wb"))
 
     def createWidgets(self):
         """@todo: Docstring for createWidgets.
@@ -30,7 +45,12 @@ class Main(object):
 
         self.frame.Bind(wx.EVT_MENU, self.OnVerbinden, id=101)
         self.frame.Bind(wx.EVT_MENU, self.OnAktualisieren, id=102)
+        self.frame.Bind(wx.EVT_BUTTON, self.OnChoose, id=201)
+        self.frame.Bind(wx.EVT_BUTTON, self.OnUbernehmen, id=202)
+        self.frame.Bind(wx.EVT_BUTTON, self.OnSync, id=203)
         self.frame.lcFiles.Bind(wx.EVT_LEFT_DCLICK, self.OnDClick)
+        self.frame.txtLocalPath.SetValue(self.synclocal)
+        self.frame.txtRemotePath.SetValue(self.syncremote)
         self.frame.Show()
 
     def verbinden(self, ip="192.168.0.1"):
@@ -53,6 +73,17 @@ class Main(object):
         self.currentpath = path
         self.filelist = self.fa.GetFileList(self.currentpath)
         self.frame.setFilelist(self.filelist)
+
+    def synchronisieren(self, arg1):
+        """@todo: Docstring for synchronisieren.
+
+        Args:
+            arg1 (@todo): @todo
+
+        Returns: @todo
+
+        """
+        pass
 
     def OnAktualisieren(self, event):
         """Dateiliste aktualisieren
@@ -90,6 +121,43 @@ class Main(object):
                 path = self.currentpath + "/" + selected.name
                 self.move(path)
 
+    def OnChoose(self, event):
+        """@todo: Docstring for OnSyncSetuo.
+
+        Args:
+            event (@todo): @todo
+
+        Returns: @todo
+
+        """
+        dlg = wx.DirDialog(self.frame, "Verzeichnis auswählen...")
+        if dlg.ShowModal() == wx.ID_OK:
+            self.synclocal = dlg.GetPath()
+            self.frame.txtLocalPath.SetValue(self.synclocal)
+
+    def OnUbernehmen(self, event):
+        """@todo: Docstring for OnUbernehmen.
+
+        Args:
+            event (@todo): @todo
+
+        Returns: @todo
+
+        """
+        self.syncremote = self.currentpath
+        self.frame.txtRemotePath.SetValue(self.syncremote)
+
+    def OnSync(self, event):
+        """@todo: Docstring for OnSync.
+
+        Args:
+            event (@todo): @todo
+
+        Returns: @todo
+
+        """
+        self.fa.Sync(self.syncremote, self.synclocal)
+
 
 class MainFrame(wx.Frame):
 
@@ -121,14 +189,36 @@ class MainFrame(wx.Frame):
         self.lcFiles = wx.ListCtrl(self, style=wx.LC_REPORT)
         self.lcFiles.InsertColumn(0, "Name")
         self.lcFiles.InsertColumn(1, "Verzeichnis")
-        self.lcFiles.InsertColumn(2, "Größe")
+        self.lcFiles.InsertColumn(2, "Groesse")
         self.lcFiles.InsertColumn(3, "Datum")
+
+        box = wx.StaticBox(self, -1, "Synchronisieren")
+        self.txtLocalPath = wx.TextCtrl(box)
+        self.txtRemotePath = wx.TextCtrl(box)
+        self.btnChoose = wx.Button(box, label="...", id=201)
+        self.btnSet = wx.Button(box, label="Uebernehmen", id=202)
+        self.btnSync = wx.Button(box, label="Synchronisieren", id=203)
+
+        flag = wx.EXPAND
+        s = wx.GridBagSizer()
+        s.Add(wx.StaticText(box, -1, "Lokal:"), (0, 0))
+        s.Add(self.txtLocalPath, (0, 1), flag=flag)
+        s.Add(self.btnChoose, (0, 2), flag=flag)
+        s.Add(wx.StaticText(box, -1, "Remote:"), (1, 0))
+        s.Add(self.txtRemotePath, (1, 1), flag=flag)
+        s.Add(self.btnSet, (1, 2), flag=flag)
+        s.Add(self.btnSync, (2, 0), span=(1, 3), flag=flag)
+        s.AddGrowableCol(1)
+        box.SetSizer(s)
+
 
         flag = wx.EXPAND
         gbs = wx.GridBagSizer()
         gbs.Add(self.lcFiles, (0, 0), flag=flag)
+        gbs.Add(box, (1, 0), flag=flag)
         gbs.AddGrowableCol(0)
         gbs.AddGrowableRow(0)
+        gbs.AddGrowableRow(1)
         self.SetSizer(gbs)
 
     def setFilelist(self, files):
