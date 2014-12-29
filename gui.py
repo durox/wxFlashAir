@@ -28,8 +28,6 @@ class Main(object):
             self.prevpath = obj[3]
 
         self.createWidgets()
-        self.verbinden()
-        self.move(self.currentpath)
 
         self.app.MainLoop()
 
@@ -101,6 +99,7 @@ class Main(object):
         if dlg.ShowModal():
             ip = dlg.GetValue()
             self.verbinden(ip)
+            self.move(self.currentpath)
 
     def OnDClick(self, event):
         """double click on list element
@@ -156,6 +155,8 @@ class Main(object):
         Returns: @todo
 
         """
+        self.synclocal = self.frame.txtLocalPath.GetValue()
+        self.syncremote = self.frame.txtRemotePath.GetValue()
         self.fa.Sync(self.syncremote, self.synclocal)
 
 
